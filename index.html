@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Terminal</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0b111e;--pn:#111a2c;--pn2:#0e1626;--ln:#1f2c45;--tx:#dce5f4;--mu:#8190ad;--am:#f5a524;--gn:#22c55e;--rd:#ef4444;--bl:#3b82f6;
+  --mono:ui-monospace,Consolas,"Cascadia Mono",monospace}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--tx);font:13px/1.4 "Segoe UI",Tahoma,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--ln);background:var(--pn);border-radius:6px;padding:5px 10px}
+button:hover{border-color:#34507d}button:disabled{opacity:.45;cursor:not-allowed}
+input,select{background:var(--pn2);border:1px solid var(--ln);border-radius:6px;padding:5px 8px;min-width:0}
+input:focus,select:focus{outline:none;border-color:var(--bl)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.mu{color:var(--mu)}.gn{color:var(--gn)}.rd{color:var(--rd)}.am{color:var(--am)}
+/* header */
+header{display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:1px solid var(--ln);background:var(--pn2);flex-wrap:wrap}
+header h1{font:700 15px/1 var(--mono);letter-spacing:.06em;margin:0}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--rd);display:inline-block;margin-right:6px}.dot.on{background:var(--gn)}
+.kv{display:flex;flex-direction:column;line-height:1.15}.kv .k{font-size:10.5px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.kv .v{font:600 14px var(--mono)}
+.badge{font:700 10.5px var(--mono);padding:2px 7px;border-radius:4px;background:#1d3a26;color:#86efac;letter-spacing:.05em}
+.badge.real{background:#4a1d1d;color:#fca5a5}
+header .sp{flex:1}
+/* layout */
+main{flex:1;display:grid;grid-template-columns:250px minmax(0,1fr) 310px;grid-template-rows:1fr 230px;min-height:0}
+.box{background:var(--pn);border-right:1px solid var(--ln);min-height:0;display:flex;flex-direction:column}
+.box h2{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin:0;padding:9px 12px;border-bottom:1px solid var(--ln)}
+[hidden]{display:none!important}
+#watch{grid-column:1;grid-row:1/3}#center{grid-column:2;grid-row:1}#bottom{grid-column:2;grid-row:2}
+#trade{grid-column:3;grid-row:1/3;border-right:0;border-left:1px solid var(--ln)}
+/* market watch */
+#wfilter{margin:8px 10px}
+#wlist{overflow:auto;flex:1}
+.wrow{display:grid;grid-template-columns:1fr 74px 74px;gap:4px;padding:5px 10px;border-bottom:1px solid #16213a;cursor:pointer;align-items:center}
+.wrow:hover{background:#15203a}.wrow.on{background:#1a2a4a}
+.wrow .s{font-weight:600}.wrow .b,.wrow .a{text-align:right;font:12px var(--mono)}
+.up{color:#60a5fa}.down{color:#f87171}
+/* chart */
+#center{display:flex;flex-direction:column;min-width:0;border-right:0}
+#ctool{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--ln);flex-wrap:wrap}
+#ctool .sym{font:700 15px var(--mono);margin-right:8px}
+.tf{padding:3px 8px;font:600 12px var(--mono)}.tf.on{background:var(--bl);border-color:var(--bl);color:#fff}
+#chart{flex:1;min-height:0;position:relative}
+#pickhint{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--am);color:#111;font-weight:600;padding:4px 10px;border-radius:6px;z-index:5;display:none}
+/* bottom tabs */
+#bottom{border-top:1px solid var(--ln);border-right:0}
+#tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--ln)}
+#tabs button{border-radius:6px 6px 0 0;border-bottom:0;background:transparent;padding:5px 12px}
+#tabs button.on{background:var(--pn2);border-color:var(--ln);color:#fff}
+#tabbody{overflow:auto;flex:1;background:var(--pn2)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:4px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid #16213a}
+th{position:sticky;top:0;background:var(--pn);font-weight:600;color:var(--mu);font-size:11.5px}
+td:first-child,th:first-child{text-align:left}
+td.num{font-family:var(--mono)}
+.mini{padding:2px 7px;font-size:12px}
+.empty{padding:16px;color:var(--mu)}
+/* trading panel */
+#tp{padding:10px 12px;overflow:auto;display:flex;flex-direction:column;gap:9px}
+.row{display:flex;gap:6px;align-items:center}.row>*{flex:1}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--mu)}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.big button{padding:10px 6px;border:0;color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px}
+.big .sell{background:#b91c1c}.big .buy{background:#1d4ed8}.big .sell:hover{background:#dc2626}.big .buy:hover{background:#2563eb}
+.big .t{font:700 12px var(--mono);letter-spacing:.08em}.big .p{font:700 19px var(--mono)}
+.spread{text-align:center;color:var(--mu);font:12px var(--mono);margin-top:-4px}
+.pick{flex:0 0 32px;padding:5px 0}
+.seg{display:flex}.seg button{flex:1;border-radius:0;padding:4px}.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}
+.seg button.on{background:#25365a;color:#fff}
+.est{background:var(--pn2);border:1px solid var(--ln);border-radius:6px;padding:7px 9px;font:12px var(--mono);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg{border-radius:6px;padding:7px 9px;font-size:12.5px;display:none;word-break:break-word}
+.msg.ok{display:block;background:#123222;color:#86efac}.msg.err{display:block;background:#3b1414;color:#fca5a5}
+.place{padding:9px;font-weight:700;border:0;border-radius:8px;color:#fff}
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+#modal .card{background:var(--pn);border:1px solid var(--ln);border-radius:10px;max-width:440px;width:100%;padding:16px}
+#modal h3{margin:0 0 10px;font-size:15px}
+#modal pre{background:var(--pn2);border-radius:6px;padding:10px;font:12.5px/1.6 var(--mono);white-space:pre-wrap;margin:0 0 12px}
+#modal .acts{display:flex;gap:8px;justify-content:flex-end}
+#settings{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+#settings .card{background:var(--pn);border:1px solid var(--ln);border-radius:10px;max-width:480px;width:100%;padding:16px;display:flex;flex-direction:column;gap:10px}
+#settings .note{font-size:12px;color:var(--mu)}
+@media (max-width:1100px){body{overflow:auto;height:auto}main{display:flex;flex-direction:column;flex:none}
+  .box{border-right:0;border-bottom:1px solid var(--ln)}#trade{border-left:0}
+  #watch{height:200px;flex:none}#center{height:420px;flex:none}#trade{flex:none}#tp{overflow:visible}#bottom{height:300px;flex:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>MCP TERMINAL</h1>
+  <span id="conn"><span class="dot"></span><span class="mu">กำลังเชื่อมต่อ…</span></span>
+  <span id="acctype"></span>
+  <div class="kv"><span class="k">Balance</span><span class="v num" id="h-bal">-</span></div>
+  <div class="kv"><span class="k">Equity</span><span class="v num" id="h-eq">-</span></div>
+  <div class="kv"><span class="k">P/L เปิดอยู่</span><span class="v num" id="h-pl">-</span></div>
+  <div class="kv"><span class="k">Free margin</span><span class="v num" id="h-fm">-</span></div>
+  <div class="kv"><span class="k">เวลาเซิร์ฟเวอร์</span><span class="v num" id="h-time">-</span></div>
+  <span class="sp"></span>
+  <button id="btn-settings">⚙ Settings</button>
+</header>
+<main>
+  <section class="box" id="watch">
+    <h2>Market Watch</h2>
+    <input id="wfilter" placeholder="ค้นหา symbol">
+    <div id="wlist"><div class="empty">รอข้อมูลจาก MT5…</div></div>
+  </section>
+
+  <section class="box" id="center">
+    <div id="ctool">
+      <span class="sym" id="c-sym">-</span>
+      <span id="tfs"></span>
+      <span class="mu" id="c-info"></span>
+    </div>
+    <div id="chart"><div id="pickhint">คลิกบนกราฟเพื่อเลือกราคา (Esc ยกเลิก)</div></div>
+  </section>
+
+  <section class="box" id="trade">
+    <h2>Trading panel</h2>
+    <div id="tp">
+      <label class="f">ประเภทคำสั่ง
+        <select id="o-kind">
+          <option value="market">Market (ส่งทันที)</option>
+          <option value="buy">Buy pending (Limit / Stop อัตโนมัติ)</option>
+          <option value="sell">Sell pending (Limit / Stop อัตโนมัติ)</option>
+        </select>
+      </label>
+      <div class="row" id="price-row" hidden>
+        <label class="f">ราคา pending<input id="o-price" class="num" inputmode="decimal"></label>
+        <button class="pick" data-pick="o-price" title="เลือกจากกราฟ" style="margin-top:17px">⌖</button>
+      </div>
+      <div id="ptype" class="est" hidden></div>
+      <div class="seg" id="sizemode"><button data-z="fixed" class="on">Lot คงที่</button><button data-z="pct" title="% ของ Balance">Risk %</button><button data-z="money" title="จำนวนเงินในสกุลของบัญชี">Risk เงิน</button></div>
+      <label class="f" id="fixed-row">Volume (lot)
+        <div class="row"><button class="mini" id="v-dn" style="flex:0 0 30px">−</button>
+          <input id="o-vol" class="num" value="0.01" inputmode="decimal">
+          <button class="mini" id="v-up" style="flex:0 0 30px">+</button></div>
+      </label>
+      <label class="f" id="risk-row" hidden><span id="risk-label">Risk ต่อออเดอร์ (% ของ Balance)</span>
+        <input id="o-risk" class="num" inputmode="decimal">
+      </label>
+      <div id="risk-out" class="est" hidden></div>
+      <span id="v-info" class="mu" style="font-size:11px;margin-top:-6px"></span>
+      <div class="seg" id="lvlmode"><button data-m="price" class="on">SL/TP เป็นราคา</button><button data-m="points">เป็น points</button></div>
+      <div class="seg" id="draftside"><button data-d="buy">📏 เส้น SL/TP ฝั่ง BUY</button><button data-d="sell">📏 ฝั่ง SELL</button></div>
+      <button id="btn-lines" hidden>📏 แสดงเส้น SL/TP บนกราฟ</button>
+      <div class="mu" id="draghint" style="font-size:11.5px;margin-top:-4px">กดปุ่มด้านบนแล้วลากเส้นบนกราฟเพื่อตั้งราคา · ลากเส้น SL/TP ของไม้ที่เปิดอยู่ = แก้ SL/TP (มีถามยืนยัน)</div>
+      <div class="row">
+        <label class="f">Stop Loss<input id="o-sl" class="num" inputmode="decimal" placeholder="ไม่ตั้ง"></label>
+        <button class="pick" data-pick="o-sl" title="เลือกจากกราฟ" style="margin-top:17px">⌖</button>
+      </div>
+      <div class="row">
+        <label class="f">Take Profit<input id="o-tp" class="num" inputmode="decimal" placeholder="ไม่ตั้ง"></label>
+        <button class="pick" data-pick="o-tp" title="เลือกจากกราฟ" style="margin-top:17px">⌖</button>
+      </div>
+      <label class="f">Comment<input id="o-cmt" maxlength="24"></label>
+
+      <div class="big" id="mkt-btns">
+        <button class="sell" data-side="sell"><span class="t">SELL</span><span class="p num" id="q-bid">-</span></button>
+        <button class="buy" data-side="buy"><span class="t">BUY</span><span class="p num" id="q-ask">-</span></button>
+      </div>
+      <button class="place" id="place-pending" hidden style="background:#7c3aed">วางคำสั่ง pending</button>
+      <div class="spread" id="q-spread"></div>
+      <div class="est" id="est">-</div>
+      <label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="o-confirm" checked> ยืนยันก่อนส่งทุกครั้ง</label>
+      <div class="msg" id="o-msg"></div>
+    </div>
+  </section>
+
+  <section class="box" id="bottom">
+    <div id="tabs">
+      <button data-t="pos" class="on">โพซิชัน (<span id="n-pos">0</span>)</button>
+      <button data-t="ord">Pending (<span id="n-ord">0</span>)</button>
+      <button data-t="hist">ประวัติ</button>
+      <button data-t="jrn">Journal ของแอป</button>
+    </div>
+    <div id="tabbody"></div>
+  </section>
+</main>
+
+<div id="modal"><div class="card"><h3 id="m-title">ยืนยันคำสั่ง</h3><pre id="m-body"></pre>
+  <div class="acts"><button id="m-no">ยกเลิก</button><button id="m-yes" style="background:#1d4ed8;border-color:#1d4ed8;color:#fff">ส่งเข้า MT5</button></div></div></div>
+
+<div id="settings"><div class="card">
+  <h3 style="margin:0">Settings</h3>
+  <label class="f">MT5 MCP server URL<input id="s-url"></label>
+  <label class="f">API key (จาก MT5 Tools &gt; Options &gt; MCP ช่อง API Key ด้านบน)<input id="s-key" type="password" autocomplete="off" placeholder="วาง key ใหม่ที่นี่ (เว้นว่าง = ใช้ key เดิม)"></label>
+  <div class="note" id="s-keystat"></div>
+  <label class="f">Max lot ต่อออเดอร์ (กันพิมพ์ผิด)<input id="s-max" class="num" inputmode="decimal"></label>
+  <label class="f">Magic number (0 = ไม่ใส่)<input id="s-magic" class="num" inputmode="numeric"></label>
+  <label class="f">Comment เริ่มต้น<input id="s-cmt" maxlength="24"></label>
+  <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="s-demo"> ส่งได้เฉพาะบัญชี demo (แนะนำให้เปิดไว้)</label>
+  <div class="msg" id="s-msg"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button id="s-close">ปิด</button><button id="s-save" style="background:#1d4ed8;border-color:#1d4ed8;color:#fff">บันทึก &amp; ทดสอบ</button></div>
+  <div style="border-top:1px solid var(--ln);padding-top:10px;display:flex;flex-direction:column;gap:6px">
+    <b style="font-size:13px">Reset การเชื่อมต่อ MT5</b>
+    <div class="note">ตัดการเชื่อมต่อ MCP, ลบ API key ที่แอปนี้บันทึกไว้ และคืน URL เป็นค่าเริ่มต้น ใช้ตอนจะถอด MT5 ตัวที่ต่ออยู่ออก หรือจะเปลี่ยนไปต่อ terminal ตัวอื่น · โพซิชันและออเดอร์ใน MT5 ไม่ถูกแตะ · key ของเว็บแอป TradingAgents ไม่ถูกลบ</div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="s-resetall"> คืนค่าอื่นทั้งหมดด้วย (max lot, magic, comment, demo only)</label>
+    <button id="s-reset" style="border-color:#7f1d1d;color:#fca5a5;align-self:flex-start">⟲ Reset การเชื่อมต่อ</button>
+  </div>
+</div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const TFS=["M1","M5","M15","M30","H1","H4","D1"];
+const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
+const st={draftSide:null,pendLine:true,bars:[],drag:null,targets:[],sym:ls("mt-sym")||"",tf:ls("mt-tf")||"M15",spec:null,quote:null,lastBar:0,lines:[],pick:null,tab:"pos",
+  open:{positions:[],orders:[]},edits:{},acct:null,mode:"price",symbols:[],prev:{},loadingChart:false,chartKey:""};
+
+async function api(path,body){
+  const opt=body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-MCP-Terminal":"1"},body:JSON.stringify(body)};
+  const r=await fetch(path,opt);let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const d=j&&j.detail;throw new Error(typeof d==="string"?d:(d?JSON.stringify(d):`HTTP ${r.status}`))}
+  return j;
+}
+const digits=()=>Number(st.spec?.digits??5);
+const fmt=(x,d=digits())=>x==null||isNaN(x)?"-":Number(x).toFixed(d);
+const money=x=>x==null||isNaN(x)?"-":Number(x).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- chart ---------- */
+const chart=LightweightCharts.createChart($("chart"),{autoSize:true,
+  layout:{background:{color:"#0b111e"},textColor:"#9aa8c4",fontFamily:"Consolas, monospace"},
+  grid:{vertLines:{color:"#141e33"},horzLines:{color:"#141e33"}},
+  rightPriceScale:{borderColor:"#1f2c45"},timeScale:{borderColor:"#1f2c45",timeVisible:true,secondsVisible:false},
+  crosshair:{mode:LightweightCharts.CrosshairMode.Normal}});
+const candles=chart.addCandlestickSeries({upColor:"#22c55e",downColor:"#ef4444",borderUpColor:"#22c55e",borderDownColor:"#ef4444",wickUpColor:"#22c55e",wickDownColor:"#ef4444"});
+let askLine=null;
+
+$("tfs").innerHTML=TFS.map(t=>`<button class="tf${t===st.tf?" on":""}" data-tf="${t}">${t}</button>`).join(" ");
+$("tfs").addEventListener("click",e=>{const b=e.target.closest("[data-tf]");if(!b)return;st.tf=b.dataset.tf;ls("mt-tf",st.tf);
+  document.querySelectorAll(".tf").forEach(x=>x.classList.toggle("on",x===b));loadChart(true)});
+
+async function loadChart(full){
+  if(!st.sym)return;
+  const key=st.sym+"|"+st.tf;
+  if(full||key!==st.chartKey){
+    st.chartKey=key;st.lastBar=0;candles.setData([]);
+    $("c-info").textContent="กำลังโหลดแท่งเทียน…";
+    try{
+      const d=await api(`/api/candles/${encodeURIComponent(st.sym)}?tf=${st.tf}&bars=500`);
+      if(key!==st.chartKey)return;
+      candles.applyOptions({priceFormat:{type:"price",precision:digits(),minMove:Math.pow(10,-digits())}});
+      candles.setData(d.bars);st.bars=d.bars.slice(-60);st.lastBar=d.bars.length?d.bars[d.bars.length-1].time:0;
+      chart.timeScale().scrollToRealTime();
+      $("c-info").textContent=d.bars.length?`${d.bars.length} แท่ง · เวลาตามเซิร์ฟเวอร์โบรกเกอร์`:"ไม่มีข้อมูลแท่งเทียน (ตลาดปิดหรือ MT5 ยังไม่ได้โหลดประวัติ)";
+    }catch(e){$("c-info").textContent="โหลดกราฟไม่ได้: "+e.message}
+    drawLines();return;
+  }
+  if(!st.lastBar||st.loadingChart)return;
+  st.loadingChart=true;
+  try{
+    const d=await api(`/api/candles/${encodeURIComponent(st.sym)}?tf=${st.tf}&since=${st.lastBar}`);
+    if(key===st.chartKey)for(const b of d.bars){if(b.time>=st.lastBar){candles.update(b);st.lastBar=b.time;if(st.bars.length&&st.bars[st.bars.length-1].time===b.time)st.bars[st.bars.length-1]=b;else{st.bars.push(b);st.bars=st.bars.slice(-60)}}}
+  }catch(e){}finally{st.loadingChart=false}
+}
+
+function sideOf(row){const t=String(row.type??"").toLowerCase();return t.includes("buy")||t==="0"?"buy":"sell"}
+function ticketOf(row){return row.ticket??row.position??row.order??row.identifier}
+function drawLines(){
+  if(st.drag)return;                       // never rebuild lines under the mouse
+  for(const l of st.lines)candles.removePriceLine(l);st.lines=[];st.targets=[];
+  const add=(price,color,title,style=2,drag=null)=>{if(!(price&&Number(price)>0))return;
+    const line=candles.createPriceLine({price:Number(price),color,lineWidth:drag?2:1,lineStyle:style,axisLabelVisible:true,title:drag?title+" ↕":title});
+    st.lines.push(line);if(drag)st.targets.push({...drag,line,price:Number(price),color,title})};
+  for(const p of st.open.positions.filter(p=>String(p.symbol).toUpperCase()===st.sym.toUpperCase())){
+    const s=sideOf(p),v=p.volume??p.volume_current??"",t=ticketOf(p);
+    add(p.price_open??p.open_price,s==="buy"?"#60a5fa":"#f87171",`${s.toUpperCase()} ${v} #${t}`,0);
+    const pos={ticket:t,symbol:p.symbol,side:s,sl:Number(p.sl)||0,tp:Number(p.tp)||0};
+    add(p.sl,"#ef4444",`SL #${t}`,2,{kind:"pos-sl",pos});add(p.tp,"#22c55e",`TP #${t}`,2,{kind:"pos-tp",pos});
+  }
+  for(const o of st.open.orders.filter(o=>String(o.symbol).toUpperCase()===st.sym.toUpperCase())){
+    const t=ticketOf(o),ord={ticket:t,symbol:o.symbol,type:String(o.type),sl:Number(o.sl)||0,tp:Number(o.tp)||0};
+    add(o.price_open??o.price,"#a78bfa",`${String(o.type).replace(/order_type_/i,"").replace("_"," ").toUpperCase()} ${o.volume_current??o.volume_initial??o.volume??""} #${t}`,1);
+    add(o.sl,"#ef4444",`SL #${t}`,3,{kind:"ord-sl",ord});add(o.tp,"#22c55e",`TP #${t}`,3,{kind:"ord-tp",ord});
+  }
+  // levels being typed in the panel: draggable
+  const lv=levels();
+  if(lv.price&&$("o-kind").value!=="market"&&st.pendLine){const pk=pendingType(lv.side,lv.price);
+    add(lv.price,"#f5a524",pk?pk.label:"ราคา pending",1,{kind:"draft-price"})}
+  const who=lv.side?lv.side.toUpperCase()+" ":"";
+  if(lv.sl)add(lv.sl,"#fb923c",`${who}SL (ร่าง)`,1,{kind:"draft-sl"});
+  if(lv.tp)add(lv.tp,"#4ade80",`${who}TP (ร่าง)`,1,{kind:"draft-tp"});
+}
+
+/* ---------- draggable SL/TP lines ---------- */
+function atr(){const B=st.bars.slice(-15,-1);if(!B.length)return null;return B.reduce((a,b)=>a+(b.high-b.low),0)/B.length}
+function setMode(m){st.mode=m;document.querySelectorAll("#lvlmode button").forEach(x=>x.classList.toggle("on",x.dataset.m===m));
+  $("o-sl").placeholder=$("o-tp").placeholder=m==="points"?"points จากราคาเข้า":"ไม่ตั้ง"}
+function toPriceMode(){                    // keep the levels, show them as prices
+  if(st.mode==="price")return;const lv=levels();setMode("price");
+  $("o-sl").value=lv.sl?fmt(lv.sl):"";$("o-tp").value=lv.tp?fmt(lv.tp):"";}
+function showDraft(side){
+  const kind=$("o-kind").value;
+  if(kind!=="market")side=kind.startsWith("buy")?"buy":"sell";
+  if(st.draftSide===side&&($("o-sl").value||$("o-tp").value)){   // second click hides them (market and pending)
+    st.draftSide=null;st.pendLine=false;$("o-sl").value="";$("o-tp").value="";markSide();updateEstimate();drawLines();return}
+  toPriceMode();st.draftSide=side;st.pendLine=true;
+  const lv=levels(side),p=lv.price;if(!p){msg(false,"ยังไม่มีราคา (ตั้งราคา pending ก่อน)");return}
+  const pt=st.spec?.point||0.00001,a=atr()||200*pt,dir=side==="buy"?1:-1;
+  const slOk=lv.sl&&(side==="buy"?lv.sl<p:lv.sl>p),tpOk=lv.tp&&(side==="buy"?lv.tp>p:lv.tp<p);
+  if(!slOk)$("o-sl").value=fmt(p-dir*1.5*a);
+  if(!tpOk)$("o-tp").value=fmt(p+dir*3*a);
+  markSide();updateEstimate();drawLines();scheduleSize();
+}
+function markSide(){document.querySelectorAll("#draftside button").forEach(b=>b.classList.toggle("on",b.dataset.d===st.draftSide));
+  const on=!!st.draftSide&&$("o-kind").value!=="market";
+  $("btn-lines").classList.toggle("on",on);$("btn-lines").textContent=on?"✕ ซ่อนเส้น SL/TP":"📏 แสดงเส้น SL/TP บนกราฟ"}
+/* Buy below the ask = Buy Limit, above = Buy Stop; Sell above the bid = Sell Limit, below = Sell Stop. */
+function pendingType(side,price){
+  const q=st.quote||{};if(!side||!price||!q.bid||!q.ask)return null;
+  const ref=side==="buy"?q.ask:q.bid;if(price===ref)return {kind:null,label:"ราคาเท่าราคาตลาด"};
+  const limit=side==="buy"?price<ref:price>ref,kind=`${side}_${limit?"limit":"stop"}`;
+  return {kind,label:`${side==="buy"?"Buy":"Sell"} ${limit?"Limit":"Stop"}`,ref,
+    why:`${side==="buy"?"ask":"bid"} ${fmt(ref)} · ราคา${price<ref?"ต่ำกว่า":"สูงกว่า"}ตลาด ${Math.round(Math.abs(price-ref)/(st.spec?.point||1e-5))} points`}}
+$("draftside").addEventListener("click",e=>{const b=e.target.closest("[data-d]");if(b)showDraft(b.dataset.d)});
+$("btn-lines").onclick=()=>showDraft(null);
+
+const box=$("chart");
+function localY(e){const r=box.getBoundingClientRect();const pt=e.touches?e.touches[0]:e;return {x:pt.clientX-r.left,y:pt.clientY-r.top,w:r.width}}
+function hit(e){
+  const {x,y,w}=localY(e);if(x>w-chart.priceScale("right").width())return null;   // not on the price axis
+  let best=null,bd=7;
+  for(const t of st.targets){const yy=candles.priceToCoordinate(t.price);if(yy==null)continue;const d=Math.abs(yy-y);if(d<bd){bd=d;best=t}}
+  return best;
+}
+function startDrag(e){
+  if(st.pick)return;const t=hit(e);if(!t)return;
+  e.preventDefault();e.stopPropagation();
+  if(t.kind.startsWith("draft"))toPriceMode();
+  st.drag=t;chart.applyOptions({handleScroll:false,handleScale:false});box.style.cursor="ns-resize";
+}
+box.addEventListener("mousedown",startDrag,true);
+box.addEventListener("touchstart",startDrag,{capture:true,passive:false});
+function moveDrag(e){
+  if(!st.drag){if(!e.touches&&box.contains(e.target))box.style.cursor=st.pick?"crosshair":hit(e)?"ns-resize":"";return}
+  e.preventDefault();
+  const price=candles.coordinateToPrice(localY(e).y);if(price==null)return;
+  const t=st.drag,v=Number(Number(price).toFixed(digits()));t.price=v;
+  t.line.applyOptions({price:v});
+  if(t.kind==="draft-sl")$("o-sl").value=fmt(v);
+  if(t.kind==="draft-tp")$("o-tp").value=fmt(v);
+  if(t.kind==="draft-price"){$("o-price").value=fmt(v);const pk=pendingType($("o-kind").value,v);
+    t.line.applyOptions({title:(pk?pk.label:"ราคา pending")+" ↕"})}
+  if(t.kind.startsWith("draft"))updateEstimate();
+}
+window.addEventListener("mousemove",moveDrag);
+window.addEventListener("touchmove",moveDrag,{passive:false});
+function endDrag(){
+  const t=st.drag;if(!t)return;
+  st.drag=null;chart.applyOptions({handleScroll:true,handleScale:true});box.style.cursor="";
+  if(t.kind.startsWith("pos")){
+    const p=t.pos,sl=t.kind==="pos-sl"?t.price:p.sl,tp=t.kind==="pos-tp"?t.price:p.tp;
+    ask("แก้ SL/TP (ลากจากกราฟ)",`#${p.ticket} ${p.symbol} ${p.side.toUpperCase()}\nSL ${sl?fmt(sl):"ไม่ตั้ง"}   TP ${tp?fmt(tp):"ไม่ตั้ง"}\n(เดิม SL ${p.sl?fmt(p.sl):"-"}  TP ${p.tp?fmt(p.tp):"-"})`,async()=>{
+      try{const r=await api("/api/position/modify",{symbol:p.symbol,ticket:Number(p.ticket),sl:sl||null,tp:tp||null});
+        msg(r.ok,(r.ok?"แก้แล้ว ✓ ":"MT5 ไม่รับ: ")+replyText(r));refreshOpen()}catch(e){msg(false,e.message);drawLines()}},drawLines);
+    return;
+  }
+  if(t.kind.startsWith("ord")){
+    const o=t.ord;
+    modifyOrder(o,t.kind==="ord-sl"?t.price:o.sl,t.kind==="ord-tp"?t.price:o.tp,"แก้ SL/TP ของ pending (ลากจากกราฟ)",drawLines);
+    return;
+  }
+  drawLines();scheduleSize();
+}
+function modifyOrder(o,sl,tp,title,cancel){
+  const was=st.open.orders.find(x=>String(ticketOf(x))===String(o.ticket))||{};
+  ask(title,`#${o.ticket} ${o.symbol} ${String(was.type||o.type||"").replace("_"," ").toUpperCase()} @ ${fmt(was.price_open)}\nSL ${sl?fmt(sl):"ไม่ตั้ง"}   TP ${tp?fmt(tp):"ไม่ตั้ง"}\n(เดิม SL ${Number(was.sl)?fmt(was.sl):"-"}  TP ${Number(was.tp)?fmt(was.tp):"-"})`,async()=>{
+    try{const r=await api("/api/order/modify",{symbol:o.symbol,ticket:Number(o.ticket),sl:sl||null,tp:tp||null});
+      if(r.ok)delete st.edits[o.ticket];msg(r.ok,(r.ok?"แก้ pending แล้ว ✓ ":"MT5 ไม่รับ: ")+replyText(r));refreshOpen()}
+    catch(e){msg(false,e.message);drawLines()}},cancel);
+}
+window.addEventListener("mouseup",endDrag,true);
+window.addEventListener("touchend",endDrag,true);
+window.addEventListener("blur",endDrag);
+
+/* pick a price from the chart */
+chart.subscribeClick(p=>{
+  if(!st.pick||!p.point)return;
+  const price=candles.coordinateToPrice(p.point.y);if(price==null)return;
+  const el=$(st.pick);
+  if(st.mode==="points"&&st.pick!=="o-price"){const ref=refPrice();el.value=Math.round(Math.abs(price-ref)/(st.spec.point||1e-5))}
+  else el.value=Number(price).toFixed(digits());
+  if(st.pick==="o-price")st.pendLine=true;
+  st.pick=null;$("pickhint").style.display="none";updateEstimate();drawLines();
+});
+document.querySelectorAll("[data-pick]").forEach(b=>b.addEventListener("click",()=>{st.pick=b.dataset.pick;$("pickhint").style.display="block"}));
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){st.pick=null;$("pickhint").style.display="none";closeModal()}});
+
+/* ---------- market watch ---------- */
+async function loadSymbols(){
+  try{
+    st.symbols=await api("/api/symbols");
+    if(!st.sym&&st.symbols.length){selectSymbol(st.symbols[0].symbol)}
+    renderWatch();
+  }catch(e){$("wlist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+}
+function renderWatch(){
+  const f=$("wfilter").value.trim().toUpperCase();
+  const rows=st.symbols.filter(s=>!f||String(s.symbol).toUpperCase().includes(f));
+  $("wlist").innerHTML=rows.map(s=>{
+    const p=st.prev[s.symbol]||{},d=Number(s.digits??5);
+    const cb=p.bid==null||s.bid==null?"":s.bid>p.bid?"up":s.bid<p.bid?"down":"";
+    const ca=p.ask==null||s.ask==null?"":s.ask>p.ask?"up":s.ask<p.ask?"down":"";
+    return `<div class="wrow${s.symbol===st.sym?" on":""}" data-s="${esc(s.symbol)}"><span class="s">${esc(s.symbol)}</span><span class="b ${cb}">${s.bid==null?"-":Number(s.bid).toFixed(d)}</span><span class="a ${ca}">${s.ask==null?"-":Number(s.ask).toFixed(d)}</span></div>`}).join("")||`<div class="empty">ไม่พบ symbol</div>`;
+  for(const s of st.symbols)st.prev[s.symbol]={bid:s.bid,ask:s.ask};
+}
+$("wfilter").addEventListener("input",renderWatch);
+$("wlist").addEventListener("click",e=>{const r=e.target.closest("[data-s]");if(r)selectSymbol(r.dataset.s)});
+
+async function selectSymbol(sym){
+  st.sym=sym;ls("mt-sym",sym);$("c-sym").textContent=sym;st.spec=st.symbols.find(s=>s.symbol===sym)||null;
+  $("o-sl").value="";$("o-tp").value="";$("o-price").value="";st.draftSide=null;st.pendLine=true;markSide();
+  renderWatch();await loadQuote();loadChart(true);
+}
+
+/* ---------- quote + panel ---------- */
+async function loadQuote(){
+  if(!st.sym)return;
+  try{
+    const q=await api(`/api/quote/${encodeURIComponent(st.sym)}`);
+    st.spec=q;st.quote=q;
+    $("q-bid").textContent=fmt(q.bid);$("q-ask").textContent=fmt(q.ask);
+    const sp=q.bid&&q.ask&&q.point?Math.round((q.ask-q.bid)/q.point):q.spread;
+    $("q-spread").textContent=`spread ${sp??"-"} points`;
+    $("v-info").textContent=`min ${q.volume_min??"-"} · step ${q.volume_step??"-"} · max ${q.volume_max??"-"} · contract ${q.contract_size??"-"}`;
+    if(askLine)candles.removePriceLine(askLine);
+    if(q.ask)askLine=candles.createPriceLine({price:q.ask,color:"#64748b",lineWidth:1,lineStyle:3,axisLabelVisible:true,title:"ask"});
+    if($("o-kind").value!=="market"&&!$("o-price").value)$("o-price").value=defaultPending();
+    updateEstimate();if($("o-kind").value!=="market")drawLines();
+  }catch(e){$("q-spread").textContent=e.message}
+}
+function refPrice(){
+  const kind=$("o-kind").value,q=st.quote||{};
+  if(kind!=="market")return Number($("o-price").value)||null;
+  return null;
+}
+function levels(side){
+  const kind=$("o-kind").value,q=st.quote||{},pt=st.spec?.point||0;
+  const s=side||(kind==="market"?st.draftSide:(kind.startsWith("buy")?"buy":"sell"));
+  const price=kind==="market"?(s==="buy"?q.ask:s==="sell"?q.bid:null):Number($("o-price").value)||null;
+  const raw=id=>{const v=$(id).value.trim();return v===""?null:Number(v)};
+  let sl=raw("o-sl"),tp=raw("o-tp");
+  if(st.mode==="points"){
+    if(!s||!price){sl=sl&&null;tp=tp&&null}
+    else{sl=sl?price+(s==="buy"?-1:1)*sl*pt:null;tp=tp?price+(s==="buy"?1:-1)*tp*pt:null}
+  }
+  return {side:s,price,sl:sl?Number(sl.toFixed(digits())):null,tp:tp?Number(tp.toFixed(digits())):null};
+}
+function estimate(sides){
+  const q=st.spec||{},cs=q.contract_size||0;
+  const acc=st.acct?.currency,sameCcy=acc&&q.currency_profit===acc;
+  const lines=[];
+  for(const side of sides){
+    const lv=levels(side);if(!lv.price)continue;
+    const z=st.size!=="fixed"?st.sized[side]:null,vol=st.size==="fixed"?(Number($("o-vol").value)||0):(z?.volume||0);
+    // money per 1.0 price move per lot in the account currency: from the server's sizing (any pair) or contract size
+    const unit=z&&q.point?z.money_per_point/q.point:(sameCcy?cs:null);
+    const risk=lv.sl&&unit?Math.abs(lv.price-lv.sl)*unit*vol:null,gain=lv.tp&&unit?Math.abs(lv.tp-lv.price)*unit*vol:null;
+    lines.push(`${side.toUpperCase()} ${vol||"?"} lot @ ${fmt(lv.price)}  SL ${fmt(lv.sl)}  TP ${fmt(lv.tp)}`);
+    if(lv.sl||lv.tp)lines.push(`   ${risk!=null?`เสี่ยง ≈ ${money(risk)} ${acc}`:lv.sl?"เสี่ยง: (ค่าเงินกำไรไม่ใช่ "+(acc||"?")+")":"ไม่มี SL"}${gain!=null?` · เป้า ≈ ${money(gain)} ${acc}`:""}${risk&&gain?` · R:R 1:${(gain/risk).toFixed(2)}`:""}`);
+  }
+  return lines.join("\n")||"-";
+}
+function updateEstimate(){
+  const kind=$("o-kind").value;
+  $("est").textContent=estimate(kind==="market"?(st.draftSide?[st.draftSide]:["buy","sell"]):[kind]);
+  if(kind!=="market"){
+    const pk=pendingType(kind,Number($("o-price").value)||null);
+    $("ptype").innerHTML=pk&&pk.kind?`จะส่งเป็น <b class="am">${pk.label}</b><br><span class="mu">${pk.why}</span>`:
+      `<span class="rd">${pk?"ราคาเท่าราคาตลาดพอดี ลากเส้นขึ้นหรือลง":"ใส่ราคา pending"}</span>`;
+    $("place-pending").textContent=pk&&pk.kind?`วาง ${pk.label}`:"วางคำสั่ง pending";
+    $("place-pending").disabled=!(pk&&pk.kind);
+  }
+}
+function defaultPending(){       // one average bar away, on the Limit side; the line can be dragged anywhere
+  const q=st.quote||{},a=atr()||200*(st.spec?.point||1e-5),buy=$("o-kind").value==="buy";
+  return q.bid?fmt(buy?q.ask-a:q.bid+a):"";
+}
+["o-vol","o-sl","o-tp","o-price"].forEach(id=>$(id).addEventListener("input",()=>{if(id==="o-price")st.pendLine=true;updateEstimate();drawLines();scheduleSize()}));
+$("lvlmode").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b||b.dataset.m===st.mode)return;
+  setMode(b.dataset.m);$("o-sl").value="";$("o-tp").value="";updateEstimate();drawLines()});
+$("o-kind").addEventListener("change",()=>{const m=$("o-kind").value==="market";
+  $("price-row").hidden=m;$("ptype").hidden=m;$("mkt-btns").hidden=!m;$("place-pending").hidden=m;$("o-price").value="";
+  $("draftside").hidden=!m;$("btn-lines").hidden=m;st.draftSide=null;st.pendLine=true;$("o-sl").value="";$("o-tp").value="";markSide();
+  if(!m&&st.quote)$("o-price").value=defaultPending();
+  updateEstimate();drawLines()});
+function stepVol(dir){const q=st.spec||{},step=q.volume_step||0.01,min=q.volume_min||step;
+  let v=Number($("o-vol").value)||min;v=Math.max(min,v+dir*step);$("o-vol").value=Number(v.toFixed(8));updateEstimate()}
+$("v-up").onclick=()=>stepVol(1);$("v-dn").onclick=()=>stepVol(-1);
+
+/* ---------- sending ---------- */
+let pending=null;
+let onCancel=null;
+function ask(title,body,fn,cancel){
+  if(!$("o-confirm").checked&&title.startsWith("ยืนยันคำสั่ง")){fn();return}
+  $("m-title").textContent=title;$("m-body").textContent=body;pending=fn;onCancel=cancel||null;$("modal").style.display="flex";$("m-yes").focus();
+}
+function closeModal(){const c=pending&&onCancel;$("modal").style.display="none";pending=null;onCancel=null;c&&c()}
+$("m-no").onclick=closeModal;$("m-yes").onclick=()=>{const f=pending;pending=null;closeModal();f&&f()};
+function msg(ok,text){const m=$("o-msg");m.className="msg "+(ok?"ok":"err");m.textContent=text}
+function replyText(r){const v=r.reply;if(typeof v==="string")return v;if(!v)return "";
+  const c=v.retcode??v.result?.retcode,cm=v.comment??v.result?.comment??v.message;return [c!=null?`retcode ${c}`:"",cm||""].filter(Boolean).join(" · ")||JSON.stringify(v).slice(0,200)}
+
+document.querySelectorAll("#mkt-btns button").forEach(b=>b.addEventListener("click",()=>{
+  const side=b.dataset.side,lv=levels(side),sz=sizing(side,lv);if(!sz)return;
+  const body={symbol:st.sym,side,...sz.body,sl:lv.sl,tp:lv.tp,comment:$("o-cmt").value||null};
+  ask("ยืนยันคำสั่ง Market",`${side.toUpperCase()} ${sz.text} ${st.sym}\nราคาตอนนี้  ${fmt(lv.price)}\nSL ${fmt(lv.sl)}   TP ${fmt(lv.tp)}\nบัญชี ${st.acct?.type||"?"}\n\n${estimate([side])}`,
+    async()=>{msg(true,"กำลังส่ง…");try{const r=await api("/api/order/market",body);
+      msg(r.ok,(r.ok?`ส่งแล้ว ✓ ${r.volume??""} lot ticket ${r.ticket??"-"}  `:"MT5 ไม่รับคำสั่ง: ")+replyText(r));refreshOpen()}catch(e){msg(false,e.message)}});
+}));
+$("place-pending").onclick=()=>{
+  const side=$("o-kind").value,lv=levels(),pk=pendingType(side,lv.price);
+  if(!pk||!pk.kind){msg(false,"ตั้งราคา pending ให้ต่างจากราคาตลาดก่อน");return}
+  const sz=sizing(side,lv);if(!sz)return;
+  const body={symbol:st.sym,side,price:lv.price,...sz.body,sl:lv.sl,tp:lv.tp,comment:$("o-cmt").value||null};
+  ask("ยืนยันคำสั่ง Pending",`${pk.label.toUpperCase()} ${sz.text} ${st.sym}\nราคา ${fmt(lv.price)}   (${pk.why})\nSL ${fmt(lv.sl)}   TP ${fmt(lv.tp)}\n\n${estimate([side])}\n\nถ้าราคาตลาดวิ่งข้ามราคานี้ก่อนกดส่ง server จะเลือก Limit/Stop ใหม่ตามราคาตอนส่ง`,
+    async()=>{msg(true,"กำลังส่ง…");try{const r=await api("/api/order/pending",body);
+      msg(r.ok,(r.ok?`วาง ${(r.kind||"").replace("_"," ")} ${r.volume??""} lot แล้ว ✓ ticket ${r.ticket??"-"}  `:"MT5 ไม่รับคำสั่ง: ")+replyText(r));refreshOpen()}catch(e){msg(false,e.message)}});
+};
+
+/* ---------- lot size: fixed or from risk ---------- */
+// The server computes the lot again from the risk and the SL when the order is sent (live price, account balance);
+// what is shown here is a preview from POST /api/size.
+st.size=ls("mt-size")||"fixed";st.sized={};
+function riskSpec(){return st.size==="fixed"?null:{mode:st.size==="pct"?"percent":"money",value:Number($("o-risk").value)}}
+function sizing(side,lv){                  // {body, text} for an order, or null after telling why not
+  const r=riskSpec();
+  if(!r)return {body:{volume:Number($("o-vol").value)},text:`${Number($("o-vol").value)} lot`};
+  if(!(r.value>0)){msg(false,"ใส่ค่า risk ก่อน");return null}
+  if(!lv.sl){msg(false,"โหมด risk ต้องตั้ง Stop Loss ก่อน (lot คำนวณจากระยะ SL)");return null}
+  const z=st.sized[side];
+  const what=r.mode==="percent"?`${r.value}% ของ balance`:`${money(r.value)} ${st.acct?.currency||""}`;
+  return {body:{risk:r},text:`${z?.volume??"?"} lot (risk ${what}; คำนวณใหม่ตอนส่ง)`};
+}
+function setSize(z){
+  st.size=z;ls("mt-size",z);
+  document.querySelectorAll("#sizemode button").forEach(b=>b.classList.toggle("on",b.dataset.z===z));
+  $("fixed-row").hidden=z!=="fixed";$("risk-row").hidden=$("risk-out").hidden=z==="fixed";
+  $("risk-label").textContent=z==="pct"?"Risk ต่อออเดอร์ (% ของ Balance)":`Risk ต่อออเดอร์ (${st.acct?.currency||"เงินในบัญชี"})`;
+  $("o-risk").value=ls("mt-risk-"+z)||(z==="pct"?"1":"10");
+  st.sized={};updateSize();updateEstimate();
+}
+$("sizemode").addEventListener("click",e=>{const b=e.target.closest("[data-z]");if(b)setSize(b.dataset.z)});
+$("o-risk").addEventListener("input",()=>{ls("mt-risk-"+st.size,$("o-risk").value);scheduleSize()});
+let sizeTimer=null;function scheduleSize(){clearTimeout(sizeTimer);sizeTimer=setTimeout(updateSize,300)}
+async function updateSize(){
+  if(st.size==="fixed"||!st.sym)return;
+  const r=riskSpec(),kind=$("o-kind").value;
+  const sides=kind==="market"?(st.draftSide?[st.draftSide]:["buy","sell"]):[kind];
+  const out=[];
+  if(!(r.value>0))out.push("ใส่ค่า risk");
+  else for(const side of sides){
+    const lv=levels(side);
+    if(!lv.sl){st.sized[side]=null;out.push(`${side.toUpperCase()}: ตั้ง SL ก่อน แล้ว lot จะคำนวณให้`);continue}
+    if(kind!=="market"&&!lv.price){out.push("ตั้งราคา pending ก่อน");continue}
+    try{
+      const z=await api("/api/size",{symbol:st.sym,side,sl:lv.sl,price:kind==="market"?null:lv.price,risk:r});
+      st.sized[side]=z;
+      out.push(`${side.toUpperCase()} ≈ <b class="am">${z.volume} lot</b> · เสียที่ SL ≈ ${money(z.loss_at_sl)} ${z.currency} (เป้า ${money(z.risk_money)})`+
+        (z.capped?`<br><span class="rd">ถูกจำกัดที่ ${z.cap} lot (max lot ใน Settings / ของ symbol)</span>`:"")+
+        (z.rate!==1?`<br><span class="mu">แปลงค่าเงินด้วย ${esc(z.rate_from)}</span>`:""));
+    }catch(e){st.sized[side]=null;out.push(`<span class="rd">${side.toUpperCase()}: ${esc(e.message)}</span>`)}
+  }
+  $("risk-out").innerHTML=out.join("<br>");updateEstimate();
+}
+
+/* ---------- account, open trades, tabs ---------- */
+async function loadStatus(){
+  try{
+    const s=await api("/api/status");
+    const on=s.connected;
+    $("conn").innerHTML=`<span class="dot${on?" on":""}"></span>${on?`<span>MT5 ${esc(s.account?.server||s.server?.name||"")}</span>`:`<span class="rd">${esc(s.error||"ไม่ได้เชื่อมต่อ")}</span>`}`;
+    st.status=s;
+    if(on){const a=s.account;st.acct=a;
+      $("acctype").innerHTML=`<span class="badge${a.type==="demo"?"":" real"}">${esc(String(a.type||"?").toUpperCase())}</span>${a.mcp_trade_allowed===false?' <span class="rd" title="MT5 ไม่อนุญาตเทรดผ่าน MCP">MCP trading OFF</span>':""}`;
+      $("h-bal").textContent=money(a.balance);$("h-eq").textContent=money(a.equity);$("h-fm").textContent=money(a.margin_free);
+      const pl=Number(a.profit||0);$("h-pl").textContent=money(pl);$("h-pl").className="v num "+(pl>0?"gn":pl<0?"rd":"");
+      $("h-time").textContent=(s.server_time||"").replace("T"," ");
+    }
+    return on;
+  }catch(e){$("conn").innerHTML=`<span class="dot"></span><span class="rd">${esc(e.message)}</span>`;return false}
+}
+async function refreshOpen(){
+  try{st.open=await api("/api/open");$("n-pos").textContent=st.open.positions.length;$("n-ord").textContent=st.open.orders.length;
+    const typing=document.activeElement&&$("tabbody").contains(document.activeElement)&&document.activeElement.tagName==="INPUT";
+    if((st.tab==="pos"||st.tab==="ord")&&!typing)renderTab();drawLines()}catch(e){}
+}
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(!b)return;st.tab=b.dataset.t;
+  document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on",x===b));renderTab(true)});
+
+async function renderTab(fetchNow){
+  const el=$("tabbody");
+  if(st.tab==="pos"){
+    const P=st.open.positions;
+    el.innerHTML=P.length?`<table><tr><th></th><th style="text-align:left">Symbol</th><th>ประเภท</th><th>Lot</th><th>ราคาเปิด</th><th>SL</th><th>TP</th><th>ราคาปัจจุบัน</th><th>กำไร</th><th>Ticket</th><th>เวลาเปิด</th></tr>${P.map(p=>{
+      const t=ticketOf(p),pr=Number(p.profit||0),d=Number((st.symbols.find(s=>s.symbol===p.symbol)||{}).digits??5);
+      return `<tr><td><button class="mini" data-close="${t}" data-s="${esc(p.symbol)}" data-v="${p.volume??p.volume_current??""}" style="border-color:#7f1d1d">ปิด</button> <button class="mini" data-mod="${t}" data-s="${esc(p.symbol)}">แก้ SL/TP</button></td>
+      <td style="text-align:left">${esc(p.symbol)}</td><td class="${sideOf(p)==="buy"?"up":"down"}">${sideOf(p)}</td><td class="num">${p.volume??p.volume_current??""}</td><td class="num">${fmt(p.price_open??p.open_price,d)}</td>
+      <td><input class="num" style="width:84px" data-sl="${t}" value="${st.edits[t]?.sl??(p.sl&&Number(p.sl)>0?fmt(p.sl,d):"")}"></td><td><input class="num" style="width:84px" data-tp="${t}" value="${st.edits[t]?.tp??(p.tp&&Number(p.tp)>0?fmt(p.tp,d):"")}"></td>
+      <td class="num">${fmt(p.price_current,d)}</td><td class="num ${pr>0?"gn":pr<0?"rd":""}">${money(pr)}</td>
+      <td class="num">${t}</td><td class="num">${esc(String(p.time??p.time_open??"").replace("T"," "))}</td></tr>`}).join("")}</table>`:`<div class="empty">ไม่มีโพซิชันเปิดอยู่</div>`;
+  }else if(st.tab==="ord"){
+    const O=st.open.orders;
+    el.innerHTML=O.length?`<table><tr><th></th><th style="text-align:left">Symbol</th><th>ประเภท</th><th>Lot</th><th>ราคา</th><th>SL</th><th>TP</th><th>Ticket</th><th>เวลาวาง</th></tr>${O.map(o=>{const t=ticketOf(o),d=Number((st.symbols.find(s=>s.symbol===o.symbol)||{}).digits??5);
+      return `<tr><td><button class="mini" data-del="${t}" data-s="${esc(o.symbol)}" style="border-color:#7f1d1d">ลบ</button> <button class="mini" data-omod="${t}" data-s="${esc(o.symbol)}">แก้ SL/TP</button></td>
+      <td style="text-align:left">${esc(o.symbol)}</td><td>${esc(String(o.type).replace(/order_type_/i,"").replace("_"," "))}</td><td class="num">${o.volume_current??o.volume_initial??o.volume??""}</td><td class="num">${fmt(o.price_open??o.price,d)}</td>
+      <td><input class="num" style="width:84px" data-sl="${t}" value="${st.edits[t]?.sl??(o.sl&&Number(o.sl)>0?fmt(o.sl,d):"")}"></td><td><input class="num" style="width:84px" data-tp="${t}" value="${st.edits[t]?.tp??(o.tp&&Number(o.tp)>0?fmt(o.tp,d):"")}"></td>
+      <td class="num">${t}</td><td class="num">${esc(String(o.time_setup??o.time??"").replace("T"," "))}</td></tr>`}).join("")}</table>`:`<div class="empty">ไม่มีคำสั่ง pending</div>`;
+  }else if(st.tab==="hist"){
+    if(fetchNow)el.innerHTML=`<div class="empty">กำลังโหลด…</div>`;
+    try{const h=await api("/api/history?days=7");const H=h.positions;
+      el.innerHTML=H.length?`<table><tr><th>Symbol</th><th>Ticket</th><th>เปิด</th><th>ปิด</th><th>ประเภท</th><th>Lot</th><th>ราคาเปิด</th><th>ราคาปิด</th><th>กำไร</th><th>Comment</th></tr>${H.map(p=>{const pr=Number(p.profit||0);
+        return `<tr><td>${esc(p.symbol)}</td><td class="num">${ticketOf(p)??""}</td><td class="num">${esc(String(p.open_time??p.time_open??"").replace("T"," "))}</td><td class="num">${esc(String(p.close_time??"").replace("T"," "))}</td><td class="${sideOf(p)==="buy"?"up":"down"}">${sideOf(p)}</td><td class="num">${p.volume??""}</td><td class="num">${p.open_price??p.price_open??""}</td><td class="num">${p.close_price??p.price_close??""}</td><td class="num ${pr>0?"gn":pr<0?"rd":""}">${money(pr)}</td><td>${esc(p.comment||"")}</td></tr>`}).join("")}</table>`:`<div class="empty">ไม่มีประวัติ 7 วันล่าสุด</div>`}
+    catch(e){el.innerHTML=`<div class="empty rd">${esc(e.message)}</div>`}
+  }else{
+    try{const J=await api("/api/journal?limit=150");
+      el.innerHTML=J.length?`<table><tr><th>เวลา (เครื่องนี้)</th><th style="text-align:left">คำสั่ง</th><th>ผล</th><th style="text-align:left">รายละเอียด</th></tr>${J.map(j=>`<tr><td class="num">${esc(j.time.replace("T"," "))}</td><td style="text-align:left">${esc(j.kind||j.tool)} ${esc(j.args?.symbol||"")} ${esc(j.args?.type||"")} ${esc(j.args?.volume??"")}</td><td class="${j.ok?"gn":"rd"}">${j.ok?"OK":"ไม่ผ่าน"}</td><td style="text-align:left;white-space:normal">${esc(j.error||replyText(j))}</td></tr>`).join("")}</table>`:`<div class="empty">ยังไม่มีคำสั่งจากแอปนี้</div>`}
+    catch(e){el.innerHTML=`<div class="empty rd">${esc(e.message)}</div>`}
+  }
+}
+$("tabbody").addEventListener("input",e=>{const i=e.target,t=i.dataset.sl||i.dataset.tp;if(!t)return;
+  st.edits[t]={...(st.edits[t]||{}),[i.dataset.sl?"sl":"tp"]:i.value}});
+$("tabbody").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.mod){const t=b.dataset.mod,sl=document.querySelector(`[data-sl="${t}"]`).value,tp=document.querySelector(`[data-tp="${t}"]`).value;
+    ask("แก้ SL/TP",`#${t} ${b.dataset.s}\nSL ${sl||"ไม่ตั้ง"}   TP ${tp||"ไม่ตั้ง"}`,async()=>{
+      try{const r=await api("/api/position/modify",{symbol:b.dataset.s,ticket:Number(t),sl:sl?Number(sl):null,tp:tp?Number(tp):null});
+        if(r.ok)delete st.edits[t];msg(r.ok,(r.ok?"แก้แล้ว ✓ ":"MT5 ไม่รับ: ")+replyText(r));refreshOpen()}catch(e){msg(false,e.message)}})}
+  if(b.dataset.close){const t=b.dataset.close;
+    ask("ปิดโพซิชัน",`ปิด #${t} ${b.dataset.s} ${b.dataset.v} lot ที่ราคาตลาด`,async()=>{
+      try{const r=await api("/api/position/close",{symbol:b.dataset.s,ticket:Number(t)});
+        msg(r.ok,(r.ok?"ปิดแล้ว ✓ ":"MT5 ไม่รับ: ")+replyText(r));refreshOpen()}catch(e){msg(false,e.message)}})}
+  if(b.dataset.omod){const t=b.dataset.omod,sl=document.querySelector(`[data-sl="${t}"]`).value,tp=document.querySelector(`[data-tp="${t}"]`).value;
+    modifyOrder({ticket:t,symbol:b.dataset.s},sl?Number(sl):0,tp?Number(tp):0,"แก้ SL/TP ของ pending")}
+  if(b.dataset.del){const t=b.dataset.del;
+    ask("ลบคำสั่ง pending",`ลบ #${t} ${b.dataset.s}`,async()=>{
+      try{const r=await api("/api/order/delete",{symbol:b.dataset.s,ticket:Number(t)});
+        msg(r.ok,(r.ok?"ลบแล้ว ✓ ":"MT5 ไม่รับ: ")+replyText(r));refreshOpen()}catch(e){msg(false,e.message)}})}
+});
+
+/* ---------- settings ---------- */
+$("btn-settings").onclick=()=>{const s=st.status?.settings||{};
+  $("s-url").value=s.url||"";$("s-max").value=s.max_volume??1;$("s-magic").value=s.magic??0;$("s-cmt").value=s.comment??"";$("s-demo").checked=s.demo_only!==false;
+  $("s-key").value="";const k=st.status?.key;$("s-keystat").textContent=k?.set?`มี key แล้ว: ${k.source}`:"ยังไม่มี key";
+  $("s-msg").className="msg";$("settings").style.display="flex"};
+$("s-close").onclick=()=>$("settings").style.display="none";
+$("s-save").onclick=async()=>{
+  const m=$("s-msg");m.className="msg ok";m.textContent="กำลังบันทึก…";
+  try{
+    if(!$("s-demo").checked&&!confirm("ปิด demo only = แอปจะส่งคำสั่งเข้าบัญชีเงินจริงได้ ยืนยัน?")){$("s-demo").checked=true}
+    await api("/api/settings",{url:$("s-url").value||null,max_volume:Number($("s-max").value)||null,magic:Number($("s-magic").value)||0,comment:$("s-cmt").value,demo_only:$("s-demo").checked});
+    if($("s-key").value.trim())await api("/api/key",{key:$("s-key").value.trim()});
+    $("s-key").value="";
+    const on=await loadStatus();
+    m.className="msg "+(on?"ok":"err");m.textContent=on?"เชื่อมต่อ MT5 ได้ ✓":"บันทึกแล้ว แต่ยังต่อไม่ได้: "+(st.status?.error||"");
+    if(on){loadSymbols();refreshOpen()}
+  }catch(e){m.className="msg err";m.textContent=e.message}
+};
+
+$("s-reset").onclick=async()=>{
+  const all=$("s-resetall").checked,m=$("s-msg");
+  if(!confirm(`Reset การเชื่อมต่อ MT5?\n\n• ตัดการเชื่อมต่อ MCP ตอนนี้\n• ลบ API key ที่แอปนี้บันทึกไว้\n• URL กลับเป็น http://127.0.0.1:22346/mcp${all?"\n• คืนค่า max lot / magic / comment / demo only เป็นค่าเริ่มต้น":""}\n\nโพซิชันและออเดอร์ใน MT5 ยังอยู่ตามเดิม`))return;
+  try{
+    const r=await api("/api/reset",{all_settings:all});
+    st.symbols=[];st.open={positions:[],orders:[]};st.quote=null;st.chartKey="";candles.setData([]);
+    if(askLine){candles.removePriceLine(askLine);askLine=null}drawLines();renderTab();
+    $("wlist").innerHTML=`<div class="empty">ตัดการเชื่อมต่อแล้ว วาง API key ใหม่ใน Settings เพื่อเชื่อมต่อ</div>`;
+    $("c-info").textContent="";$("q-bid").textContent=$("q-ask").textContent="-";
+    $("n-pos").textContent=$("n-ord").textContent="0";
+    ["h-bal","h-eq","h-pl","h-fm","h-time"].forEach(id=>$(id).textContent="-");$("acctype").innerHTML="";
+    await loadStatus();
+    const s=r.settings;$("s-url").value=s.url;$("s-max").value=s.max_volume;$("s-magic").value=s.magic;$("s-cmt").value=s.comment;$("s-demo").checked=s.demo_only!==false;
+    $("s-keystat").textContent=r.key.set?`ยังมี key: ${r.key.source}`:"ยังไม่มี key";
+    m.className="msg "+(r.note?"err":"ok");
+    m.textContent=r.note?"Reset แล้ว แต่ "+r.note:`Reset แล้ว ✓ ${r.key_removed?"ลบ key แล้ว":"ไม่มี key ให้ลบ"} · URL ${s.url}`;
+  }catch(e){m.className="msg err";m.textContent=e.message}
+};
+
+/* ---------- loops ---------- */
+let busy={};
+function every(ms,name,fn){const tick=async()=>{if(!busy[name]&&!document.hidden){busy[name]=1;try{await fn()}finally{busy[name]=0}}};tick();setInterval(tick,ms)}
+(async()=>{
+  $("c-sym").textContent=st.sym||"-";
+  const on=await loadStatus();
+  setSize(st.size);
+  if(!on){$("wlist").innerHTML=`<div class="empty">ยังต่อ MT5 ไม่ได้ เปิด ⚙ Settings แล้ววาง API key</div>`;$("btn-settings").click()}
+  await loadSymbols();
+  if(st.sym)selectSymbol(st.sym);
+  every(1000,"q",loadQuote);every(3000,"z",updateSize);every(2000,"c",()=>loadChart(false));every(2000,"o",refreshOpen);
+  every(3000,"w",loadSymbols);every(5000,"s",loadStatus);
+})();
+</script>
+</body>
+</html>
